@@ -1,0 +1,33 @@
+{
+    "id": "F89BECA4",
+    "path": "C:/Users/user/OneDrive - The University of Liverpool/MSc/Assignments/DASC503-1/DASC503/Analysis.Rmd",
+    "project_path": "Analysis.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1734520843902.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "chunk_output_type": "inline",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "5,0",
+        "scrollLine": "0",
+        "rmdVisualMode": "true",
+        "rmdVisualCollapsedChunks": "",
+        "rmdVisualModeLocation": "57:0",
+        "rmdVisualWrapConfigured": "true",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1734520924,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1734520934299,
+    "read_only": false,
+    "read_only_alternatives": []
+}

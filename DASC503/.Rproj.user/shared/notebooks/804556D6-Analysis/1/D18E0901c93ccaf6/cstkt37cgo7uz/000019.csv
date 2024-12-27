@@ -1,0 +1,7 @@
+"0","popestimates20112022v3 %>% left_join(ONSPD, by = c(""ladcode23"" = ""oslaua"")) %>%
+  select(-c(ladcode23, laname23, oshlthau, country)) %>%
+  filter(!is.na(SHA10NM)) %>% 
+  group_by(SHA10NM, age, sex) %>% 
+  summarise(across(starts_with(""population""),sum)) -> Temp
+"
+"2","`summarise()` has grouped output by 'SHA10NM', 'age'. You can override using the `.groups` argument."

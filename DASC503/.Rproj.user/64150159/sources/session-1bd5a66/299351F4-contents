@@ -1,0 +1,473 @@
+---
+title: DASC503 DataLab4, Simple measures of disease burden   
+author: Anna Head
+date: August 2024
+#output: word_document
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 80
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning objectives
+
+> The **primary objective** is for you to be able to calculate simple measures 
+of disease burden, including incidence proportion and disease-specific mortality 
+
+After you complete this tutorial, you should be able to:
+
+1.  Load data from existing RStudio projects
+
+2.  Use ICD-10 and population estimate data to calculate incidence proportions 
+and disease-specific mortality 
+
+3.  Stratify & plot simple epidemiological measures of disease 
+
+## Overview
+
+For this tutorial, we will use the same data as last week - this is summarised
+data from the cancer registry as the ONS reports them. Today we will look at 
+**lung cancer**. 
+
+## Preparation
+
+**Note**: If you don't have the data saved from last week, follow steps 1-7 in the 
+Week 3 datalab tutorial. Ask if you are stuck!
+
+
+1.  Open RStudio and open the project you created last week. 
+    If you are using the same computer as last week you should be able to select
+    this from the top right-hand corner. 
+    If you are using a different computer, you can navigate to where you set up
+    your project using the "Files" tab in the bottom right-hand pane.
+    
+2.  Import the .csv file you saved last week using `fread`. I called mine 
+    "cancer_data_2017.csv", but yours might be different. Note the argument
+    `stringsAsFactors = TRUE` we used in `fread()` to autoconvert character
+    colums into factors.
+
+    Have a quick look to check it is how we want it. 
+
+
+    ```{r message=FALSE, warning=FALSE, include=FALSE}
+    library(data.table)
+    ca2017 <- fread("input_data/cancer_data_2017.csv", stringsAsFactors = TRUE)
+    ```
+
+    ```{r eval=FALSE, include=TRUE}
+    library(data.table)
+    ca2017 <- fread("input_data/cancer_data_2017.csv", stringsAsFactors = TRUE)
+    View(ca2017)
+    summary(ca2017)
+
+    ```
+
+Most of our columns should be factors. If they are not go ahead and convert
+`registration_type`, `icd_10_code`, `sex` and `age_group` to factors yourself.
+See if you can do this without looking at the code below.
+
+<details>
+
+<summary>**Hint:**</summary>
+
+```{r eval=FALSE, include=TRUE, message=FALSE, warning=FALSE}
+    ca2017[, registration_type := factor(registration_type)]
+    ca2017[, icd_10_code := factor(icd_10_code)]
+    ca2017[, sex := factor(sex)]
+    summary(ca2017)
+```
+</details>
+
+Now let's look in particular the levels of the `age_group` column (assuming it is a factor already).
+
+```{r message=FALSE, warning=FALSE}
+ca2017[, levels(age_group)]
+```
+
+The order is not ideal as i.e. ages < 1 are placed at the end which may have an
+impact if we want i.e. to plot based on this column. Ideally we would like the
+levels ordered by age. Let's fix this. The easiest way is to use the `levels`
+argument the in `factor()` function.
+
+```{r message=FALSE, warning=FALSE}
+ca2017[, age_group := factor(age_group, 
+                             levels = c("All ages", "Under 1", "1-4", "5-9",
+                                        "10-14", "15-19", "20-24", "25-29",
+                                        "30-34", "35-39", "40-44", "45-49", 
+                                        "50-54", "55-59", "60-64", "65-69", 
+                                        "70-74", "75-79", "80-84", "85-89", 
+                                        "90 and over"))]
+ca2017[, levels(age_group)]
+```
+
+
+
+3. The data we have only gives the number of new cancer cases and number of 
+deaths from cancer in 2017. It does not include any information on the size of 
+the population. We will use ONS 2017 mid-year population estimates for this. 
+You can download these from the W4 canvas page. Save them into your "input_data"
+folder, and then load them into Rstudio. I am calling mine `pop2017`
+
+Have a look at the data (`View()`), check the class (`class()`), and inspect
+the data (`summary()`)
+
+<details>
+
+<summary>**Hint:**</summary>
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+    pop2017 <- fread("input_data/pop_data_2017.csv", stringsAsFactors = TRUE)
+```
+
+```{r eval=FALSE, include=TRUE}
+    pop2017 <- fread("input_data/pop_data_2017.csv", stringsAsFactors = TRUE)
+    View(pop2017)
+    class(pop2017)
+    summary(pop2017)
+```
+
+</details>
+
+This data came from the 2017 mid-year ONS population estimates, available in 
+raw form here: https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland 
+As the raw data is not in the format we need it, we provided a 'pre-prepared' 
+version on canvas. If you would like to practice your data manipulation skills 
+in R, a good exercise would be to try and recreate the Canvas dataset from the
+raw data. An example R script for this is available on Canvas. 
+
+
+4. Let's preprocess the population data - we want the `sex` and `age_group`
+columns to match those in our `ca2017` data. 
+
+
+```{r message=FALSE, warning=FALSE}
+pop2017[, sex := factor(sex)]
+pop2017[, age_group := factor(age_group, 
+                             levels = unique(ca2017$age_group))]  
+```
+
+
+
+## Analysis - incidence 
+
+Now, we can finally start working with our data. Today we are looking at records
+of **Lung Cancer**
+
+### Task 1
+
+How many cases of Lung Cancer were recorded in England in 2017
+overall?
+
+<details>
+
+<summary>**Hint:**</summary>
+
+Visit the [WHO ICD website](https://icd.who.int/browse10/2015/en#/ "Click me!")
+for the ICD-10 code for Lung cancer.
+
+</details>
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+ca2017[registration_type == "Number of Diagnoses" &
+         icd_10_code == "C34" &
+         age_group == "All ages",
+       sum(events)
+       ]
+```
+
+
+### Task 2
+
+How many people were there in England in 2017? 
+
+<details>
+
+<summary>**Hint:**</summary>
+
+For this we will need the 2017 population estimates. We will need to sum the 
+number of males & females of all ages. 
+
+</details>
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+pop2017[
+         age_group == "All ages",
+       sum(pop_size)
+       ]
+```
+
+</details>
+
+
+### Task 3
+
+What is the incidence proportion of lung cancer in 2017? Present your 
+answer as cases per 100,000 persons
+
+We are making the assumption here that everyone in the population is 
+`at risk` of lung cancer, which is not exactly true. 
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+(38888 / 55619430) * 100000 
+```
+
+The incidence proportion of lung cancer in 2017 was about 70 cases per 100,000 persons
+
+</details>
+
+
+### Task 4 
+
+The incidence of lung cancer is strongly associated with age. 
+
+Plot the incidence of Lung cancer recorded in England in 2017
+by age group.
+
+<details>
+
+<summary>**Hint:**</summary>
+
+For this, we will need to add in the population estimates data.
+We can use a left outer join to do this (see week 2 for a reminder)
+
+```{r message=FALSE, warning=FALSE}
+ca2017 <- ca2017[pop2017, on = c("sex", "age_group")]
+head(ca2017, n = 10)
+```
+
+Note that we can do the join more efficiently, avoiding reassigning the whole dataset object, which
+is inefficient like below.
+
+```{r eval=FALSE, include=TRUE}
+ca2017[pop2017, on = c("sex", "age_group"), pop_size := i.pop_size] 
+# the use of i. in i.pop_size is to denote the columns in the pop2017 data.table
+```
+
+
+This adds in the population size matching on `sex` and `age_group`. 
+Note that this adds in the population size against each registration type & 
+ICD-10 code.
+
+You can now use similar code from Week 3's data lab to plot the incidence 
+proportion.
+
+</details>
+
+<details>
+
+<summary>Answer</summary>
+
+Using `plot()`
+
+```{r message=FALSE, warning=FALSE}
+out <- ca2017[registration_type == "Number of Diagnoses" &
+         icd_10_code == "C34" &
+         age_group != "All ages",
+       .(cases = sum(events), 
+         pop_size = sum(pop_size),
+         incd_prop = sum(events) / sum(pop_size) * 100000),
+       keyby = age_group
+       ]
+table(out$age_group) # NOTE 'All ages' is empty 
+plot(x = droplevels(out$age_group), # droplevels removes empty levels in factors, in this case, the `All ages` level
+     y = out$incd_prop, 
+     type = "h", 
+     main = "Incidence proportion of Lung Cancer (ICD-10:C34); England, 2017",
+     xlab = "Age groups",
+     ylab = "New cases per 100,000 persons")
+     
+```
+
+Or `ggplot()`
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+
+# out is same as above
+
+p <- ggplot(out, aes(x = age_group, y = incd_prop)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Incidence proportion of Lung Cancer (ICD-10:C34); England, 2017") +
+  scale_y_continuous(name = "New cases per 100,000 persons") +
+  scale_x_discrete(name = "Age groups") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+p
+```
+
+
+Let's reflect a little: 
+
+1. What are some of the limitations of our approach? 
+
+2. What additional information would we need to calculate incidence rates? 
+
+
+<details>
+
+<summary>Answer</summary>
+1. Limitations: 
+- We have assumed the whole population is 'at risk', i.e. there are no prevalent
+(pre-existing) cases 
+
+- We have not taken into account person-time at risk 
+
+2. Additional information: 
+
+- Numbers of people with pre-existing/prevalent lung cancer - so we can identify
+how many people are at risk of being diagnosed
+
+- The proportion/number of days in the year each person is at risk - so we can 
+calculate incidence per person-years at risk
+</details>
+
+
+### Homework 
+
+Plot the absolute number of cases of Lung Cancer recorded in England in 2017
+by age group. How does this plot differ to your plot of incidence proportion 
+and why?
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+
+p <- ggplot(out, aes(x = age_group, y = cases)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Registered cases of Lung Cancer (ICD-10:C34)", "England, 2017") +
+  scale_y_continuous(name = "Cases") +
+  scale_x_discrete(name = "Age groups") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+p
+```
+
+</details>
+
+
+## Analysis - mortality 
+
+### Task 5
+
+What is the disease-specific mortality for lung cancer? 
+Calculate your answer per 100,000 persons 
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+ca2017[registration_type == "Number of Deaths" &
+         icd_10_code == "C34" &
+         age_group == "All ages",
+       .(mortality = sum(events) / sum(pop_size) * 100000)]
+
+```
+Lung cancer mortality in 2017: approximately 51 cases per 100,000 persons 
+
+</details>
+
+
+### Homework 
+Plot lung-cancer mortality by sex and describe your findings. What additional 
+information or calculations might you want before drawing any conclusions 
+from this plot. 
+
+<details>
+
+<summary>Answer</summary>
+
+```{r message=FALSE, warning=FALSE}
+
+out <- ca2017[registration_type == "Number of Deaths" &
+         icd_10_code == "C34" &
+         age_group == "All ages",
+       .(cases = sum(events), 
+         pop_size = sum(pop_size),
+         mortality = sum(events) / sum(pop_size) * 100000),
+       keyby = sex
+       ]
+
+out
+
+p <- ggplot(out, aes(x = sex, y = mortality)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Lung Cancer mortality (ICD-10:C34)", "England, 2017") +
+  scale_y_continuous(name = "Lung Cancer mortality\n(per 100,000 persons)") +
+  scale_x_discrete(name = "Sex") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+p
+
+
+```
+
+Lung cancer mortality in England in 2017 was 46 cases per 10,000 persons 
+among females, compared to 55 cases per 10,000 persons for males. 
+
+This does not take into account age for either group. We know that lung cancer
+is more common among older age-groups, so if the average age of men in the 
+population was older than for women, this may influence our results. 
+
+To account for this, we could plot mortality by sex *and* age-group, or 
+we could calculate *age standardised rates* - this will be covered in a later 
+lecture. 
+
+</details>
+
+
+## What about prevalence? 
+
+So far, we have looked at incidence and mortality. If we wanted to calculate
+prevalence of lung cancer in England in 2017, what additional information would
+we need? How would we calculate it?
+
+<details>
+
+<summary>Answer</summary>
+
+We would need to know the **total** number of people who have lung cancer in 
+2017 - this includes people who were diagnosed before 2017 (and have not 
+recovered) *as well as* the people who are diagnosed in 2017. 
+
+Prevalence (%): total number of people with lung cancer in 2017 / total number of
+people in 2017 * 100 
+
+</details>
+
+
+
+--------------------------------------------------------------------------------
+
+## Learning objectives
+
+By now, you should be able to:
+
+1.  Load data from existing RStudio projects
+
+2.  Use ICD-10 and population estimate data to calculate incidence proportions 
+and disease-specific mortality 
+
+3.  Stratify & plot simple epidemiological measures of disease 
+
+
+
+
+

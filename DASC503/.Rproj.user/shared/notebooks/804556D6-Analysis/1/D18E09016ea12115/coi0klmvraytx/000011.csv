@@ -1,0 +1,40 @@
+"0",""
+"0","# Patient population data"
+"0","tblData <- read_csv(""Source/pop_snomed_assignment.csv"")"
+"2","[1mRows: [22m[34m476858[39m [1mColumns: [22m[34m10[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m─────────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m  (5): sex, qimd, ethnicity, sha, smoking_status
+[32mdbl[39m  (3): pid, medcodeid, snomedctdescriptionid
+[34mdate[39m (2): dob, event_date"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","# SNOMED codelist"
+"0","tblLungCancerCodes <- read_csv(""Source/dLungCancerCodes.csv"")"
+"2","New names:"
+"2","[1mRows: [22m[34m38[39m [1mColumns: [22m[34m13[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m─────────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m (6): read code, disease, descr, category, system, mapping
+[32mdbl[39m (7): ...1, medcode, disease_num, system_num, medcodeid, snomedctconceptid, snomedctdescriptionid"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","  "
+"0","#tblLungCancerCodes <- read_csv(""https://raw.githubusercontent.com/annalhead    /CPRD_multimorbidity_codelists/9d26739d93744c8444aedbe10de65657c4af6bc0/codelists/Primary%20Malignancy_Lung.csv"")"
+"0",""
+"0","# Function to get the most frequently occurring value in a vector. "
+"0","fGetMostFrequent <- function(tblInput){"
+"0","  tblInput %>% "
+"0","    table() %>% "
+"0","    sort(decreasing = TRUE) %>% "
+"0","    .[1] %>% "
+"0","    names() -> output"
+"0","  return(output)"
+"0","}"
+"0",""
+"0","# Function to calculate the time difference in years between two dates"
+"0","fCalcYear <- function(dateFrom,dateTo){"
+"0","  return(interval(dateFrom, dateTo) / years(1))"
+"0","}"

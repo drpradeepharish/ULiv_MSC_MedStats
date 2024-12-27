@@ -1,0 +1,6 @@
+library(tidyverse)
+
+pop_snomed_assignment <- read_csv("Source/pop_snomed_assignment.csv")
+
+pop_snomed_assignment %>% 
+  slice_sample(prop = 0.1) -> pop_snomed_sample

@@ -1,0 +1,15 @@
+"0","Temp %>% 
+  group_by(pid) %>% 
+  partition(pllCluster) %>% 
+  mutate(
+    year_start = pmax(dateFrom, ymd(dob) + years(age_seq)),
+    year_end = pmin(censor_date, ymd(dob) + years(age_seq + 1)),
+    patient_years = fCalcYear(year_start, year_end)
+  ) %>% 
+   collect() -> tblIntermediateDenominator
+  print(""Final calculations complete"")
+"
+"1","[1]"
+"1"," ""Final calculations complete"""
+"1","
+"

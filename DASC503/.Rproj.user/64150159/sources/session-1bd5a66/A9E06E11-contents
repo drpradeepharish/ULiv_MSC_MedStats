@@ -1,0 +1,346 @@
+---
+title: DASC503 DataLab3, Working with ICD-10 data  
+author: Chris Kypridemos
+date: October 2025
+#output: word_document
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 80
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning objectives
+
+> The **primary objective** is for you to be able to work comfortably with
+> routine data coded in ICD-10.
+
+After you complete this tutorial, you should be able to:
+
+1.  Create and organise new RStudio projects
+
+2.  Load data from Excel files
+
+3.  Use ICD-10 to identify cases in a dataset
+
+4.  Plot using some of the available packages
+
+## Overview
+
+For this tutorial, we will use summarised data from the cancer registry as the
+ONS reports them. We will download the 2017 dataset from ONS, load it into R,
+inspect it, and then use it to answer some epidemiological questions.
+
+## Preparation
+
+1.  Open RStudio and create a new project in a folder that you prefer. Creating
+    this folder in your M: drive or a USB stick is preferable if you use a
+    university computer.
+2.  Create a folder within your newly created RStudio project and name it
+    "input_data". You can do that from RStudio. Look at the bottom-right pane,
+    find the "Files" tab, and click the "New Folder" button (it is the first
+    button on the left).
+3.  Now, visit the [ONS
+    webpage](https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/conditionsanddiseases/datasets/cancerregistrationstatisticscancerregistrationstatisticsengland "Click me!"){.uri}
+    that hosts the dataset we will use for this tutorial.
+4.  Download the "2017 edition of this dataset Final" `.xlsx` file and save it
+    into the "input_data" folder you created earlier. The file's filename is
+    "finaltables14.xlsx", and we can see from its extension that it is a
+    Microsoft Excel native file format.
+5.  Back in RStudio, use the "Files" tab to navigate to the file
+    "finaltables14.xlsx", click on it, and then click "View File". The file will
+    open in Microsoft Excel. Spend some time familiarising yourself with the
+    context.
+
+## Import the dataset into R
+
+1.  Back in RStudio, use the "Files" tab to navigate to the file
+    "finaltables14.xlsx", left-click on it, and this time click "Import
+    Dataset". A new window will appear that will allow you to select what to
+    import.
+
+2.  Select the sheet "Table 1 Data" in the new window and click "Import" at the
+    bottom right. Notice that this sheet was hidden when we inspected the file
+    in Excel. You may have noticed that "Table 1" was a `pivot table` in Excel.
+    "Table 1 Data" is the data that primes that `pivot table`. If you have never
+    encountered the term \`pivot table\` in Excel, it is a handy feature to
+    summarise and explore datasets. You can learn more about it
+    [here](https://www.youtube.com/watch?v=m0wI61ahfLc "Click me!").
+
+3.  The previous window is a helpful graphical user interface (GUI) that
+    generates R code. In this case, it generated the code below. Study the code
+    chunk and try to understand what it does. As usual, read the help files for
+    the unfamiliar functions. You can adapt this code and use it directly in
+    your future scripts without using the RStudio GUI, increasing automation and
+    portability.
+
+    ```{r message=FALSE, warning=FALSE, include=FALSE}
+    library(readxl)
+    finaltables14 <- read_excel("input_data/finaltables14.xlsx", sheet = "Table 1 Data")
+    ```
+
+    ```{r eval=FALSE, include=TRUE}
+    library(readxl)
+    finaltables14 <- read_excel("input_data/finaltables14.xlsx", sheet = "Table 1 Data")
+    View(finaltables14)
+    ```
+
+4.  From the code above, we can see that the data were imported into an object
+    named `finaltables14`. Let's check the class(es) of this object.
+
+    ```{r echo=TRUE}
+    class(finaltables14)
+    ```
+
+5.  The object is a `data.frame`, among other things. Let's convert it into a
+    `data.table` object named `ca2017` and remove the `finaltables14`.
+
+    ```{r warning=FALSE}
+    library(data.table) # load data.table package
+    ca2017 <- as.data.table(finaltables14) # convert to data.table.
+    # You could also use setDT(finaltables14), but this wouldn't change the name of the object
+    rm(finaltables14) # Remove finaltables14
+    ```
+
+6.  Now, let's inspect the `ca2017` using the function `summary()`. **Always
+    inspect** new datasets and familiarise yourself with the data. Notice that
+    many columns are of class `character`.
+
+    ```{r}
+    summary(ca2017)
+    ```
+
+## Preprocess & inspect the data
+
+1.  In R, converting character columns into factor columns is almost always
+    helpful. First, let's check the character columns' cardinality (the number
+    of unique values). We can check the columns individually, i.e. like in the
+    code below.
+
+    ```{r}
+    ca2017[, uniqueN(`Registration Type`)]
+    ca2017[, unique(`Registration Type`)]
+    ```
+
+    For those of you more familiar with R and data.table, the syntax below
+    requires less typing and user intervention.
+
+    ```{r}
+    ca2017[, lapply(.SD, uniqueN), .SDcols = is.character]
+    ```
+
+2.  Now let's convert the columns `Registration Type`, `ICD-10 code`, and `Sex`
+    to factors and re-inspect.
+
+    ```{r}
+    ca2017[, `Registration Type` := factor(`Registration Type`)]
+    ca2017[, `ICD-10 code` := factor(`ICD-10 code`)]
+    ca2017[, Sex := factor(Sex)]
+    summary(ca2017)
+    ```
+
+3.  There seem to be no implausible values. We are lucky! Datasets often contain
+    implausible values, but ONS curates this one, so it is of good quality.
+
+4.  Notice that the data are in the 'wide' format. I.e. each age group is a
+    column. Most of the time, the analysis is more straightforward if we work
+    with the 'long' format. I.e. we need one column to code the information on
+    age groups and one for the number of events for each age group. We can use
+    the function `melt()` to transform our dataset.
+
+    ```{r}
+    ca2017 <- melt(
+      ca2017, # The wide data.table
+      id.vars = c("Registration Type", "ICD-10 code", "Site description", "Sex"), # the columns to keep
+      variable.name = "age_group",
+      value.name = "events"
+    )
+    head(ca2017)
+    summary(ca2017)
+    ```
+
+5.  Notice that `age_group` was created as a factor. Because age groups are
+    ordinal (have an inherent order), I will check that the factor levels have
+    the correct order.
+
+    ```{r}
+    levels(ca2017$age_group)
+    ```
+
+    They seem alright.
+
+6.  Let's rename the columns to something simpler.
+
+```{r}
+names(ca2017)
+setnames(ca2017, tolower(names(ca2017))) # no capital letters
+names(ca2017)
+setnames(ca2017, gsub("-", "_", names(ca2017))) # underscore instead of space or dash
+setnames(ca2017, gsub(" ", "_", names(ca2017))) # underscore instead of space or dash
+names(ca2017)
+```
+
+`gsub()` and `grep()` are very handy functions but require some knowledge of regular
+expressions (regex) to set the string patterns. You can learn the basics of
+regex
+[here](https://www.jumpingrivers.com/blog/regular-expressions-every-r-programmer-should-know/ "Click me!")
+or for a more detailed description
+[here](https://www.zytrax.com/tech/web/regex.htm "Click me!").
+
+
+7.  Finally, now we have our data in the format that we want it, let's save it 
+    as a .csv file so that we can reuse it again easily without having to go
+    through all these steps again. I am saving it my "input_data" folder 
+
+```{r}
+fwrite(ca2017, # The object we want to save
+      file = "input_data/cancer_data_2017.csv" # The file we want to save it to
+        )
+```
+`fwrite()` is a fast way to save objects using data.table. When we read them 
+back in (using `fread()`), it remembers the classes of our data. See Week 2 
+datalab materials for more info. 
+
+NB:  R will automatically save to the current working directory. As we set a 
+project at the start of this session, the working directory should be our 
+project directory. You can check the current working directory with `getwd()`.
+
+
+## Analysis
+
+Now, we can finally start working with our data.
+
+### Task 1
+
+How many cases of **Lymphoid leukaemia** were recorded in England in 2017
+overall?
+
+<details>
+
+<summary>**Hint:**</summary>
+
+Visit the [WHO ICD website](https://icd.who.int/browse10/2015/en#/ "Click me!")
+for the ICD-10 code for Lymphoid leukaemia.
+
+</details>
+
+<details>
+
+<summary>Answer</summary>
+
+```{r}
+ca2017[registration_type == "Number of Diagnoses" &
+         icd_10_code == "C91" &
+         age_group == "All ages",
+       sum(events)
+       ]
+```
+
+</details>
+
+### Task 2
+
+Plot the number of cases of **Lymphoid leukaemia** recorded in England in 2017
+by age group.
+
+<details>
+
+<summary>Answer</summary>
+
+```{r}
+out <- ca2017[registration_type == "Number of Diagnoses" &
+         icd_10_code == "C91" &
+         age_group != "All ages",
+       .(cases = sum(events)),
+       keyby = age_group
+       ]
+table(out$age_group) # NOTE 'All ages' is empty 
+plot(x = droplevels(out$age_group), # droplevels removes empty levels in factors
+     y = out$cases, type = "h", 
+     main = "Registered cases of lymphoid leukaemia (ICD-10:C91); England, 2017",
+     xlab = "Age groups",
+     ylab = "Cases")
+     
+```
+
+Or we can use the package `ggplot2` for more flexibility. For an introduction,
+you can have a look [here](https://r-graphics.org/ "Click me!"). Notice that the
+age groups do not have the same width. We will ignore this for simplicity.
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+
+# out is same as above
+
+p <- ggplot(out, aes(x = age_group, y = cases)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Registered cases of lymphoid leukaemia (ICD-10:C91)", "England, 2017") +
+  scale_y_continuous(name = "Cases") +
+  scale_x_discrete(name = "Age groups") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+p
+```
+
+We can make this even better...
+
+```{r message=FALSE, warning=FALSE}
+# we can take this further by using a fancy theme
+library("ggthemes")
+
+p <- p + 
+  theme_tufte() +
+theme(axis.text.x = element_text(angle = 30, hjust = 1))
+p
+```
+
+And then we can even make it interactive! Hover your mouse cursor over the plot,
+or click-and-drag and see what happens...
+
+```{r message=FALSE, warning=FALSE}
+# You may have to install the package first 
+# install.packages("plotly")
+library(plotly)
+ggplotly(p)
+
+```
+
+</details>
+
+--------------------------------------------------------------------------------
+
+## Learning objectives
+
+By now, you should be able to:
+
+1.  Create and organise new RStudio projects
+
+2.  Load data from Excel files
+
+3.  Use ICD-10 to identify cases in a dataset
+
+4.  Plot using some of the available packages
+
+############## 
+
+<!-- # Wrapping up -->
+
+<!-- ## Saving your workspace -->
+
+<!-- - You can save everything you have done using File -> Save (R Studio will prompt you when exiting) -->
+
+<!-- - I never save my workspace -->
+
+<!-- - Why? Because I save the R Script (copy & paste) -->
+
+<!-- ## Where to learn more -->
+
+<!-- - Venables WN, Smith DM (2014). An Introduction to R: http://cran.r-project.org/doc/manuals/R-intro.pdf -->
+
+<!-- - Shahbaba B (2012). Biostatistics with R. Springer, NY.  -->
+
+<!-- - Data Camp online course: https://www.datacamp.com/courses/ -->
+
+<!-- - Ask if you are stuck! -->

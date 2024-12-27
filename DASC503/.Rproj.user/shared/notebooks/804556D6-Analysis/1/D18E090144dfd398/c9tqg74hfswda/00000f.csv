@@ -1,0 +1,8 @@
+"0","tblIntermediateDenominator %>% 
+ group_by(sex, qimd, ethnicity, sha, smoking_status, age = age_seq) %>%
+ summarise(total_patient_years = sum(patient_years, na.rm = TRUE)) %>%
+ arrange(age) -> tblDenominator 
+"
+"2","`summarise()` has grouped output by 'sex', 'qimd', 'ethnicity', 'sha', 'smoking_status'. You can override using the `.groups` argument."
+"0"," "
+"0"," tblDenominator %>% write_csv(""tblDenominator.csv"")"

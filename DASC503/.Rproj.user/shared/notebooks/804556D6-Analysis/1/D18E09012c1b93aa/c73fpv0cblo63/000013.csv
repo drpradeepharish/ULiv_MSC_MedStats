@@ -1,0 +1,13 @@
+"0",""
+"0","dateFrom = ymd_hms(""2014-1-1 0:0:1"")"
+"0","dateTo = ymd_hms(""2020-12-31 23:59:59"")"
+"0",""
+"0","intervalStudy <- interval(dateFrom,dateTo)"
+"0",""
+"0","tblData <- read_csv(""Source/pop_snomed_assignment.csv"")"
+"2","Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+"
+"2","Warning: type 29 is unimplemented in 'type2char'"
+"2","Error in vapply(out, is.null, logical(1)) : 
+  INTEGER() can only be applied to a 'integer', not a 'unknown type #29'
+"

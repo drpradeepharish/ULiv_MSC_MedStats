@@ -1,0 +1,12 @@
+"0","library(santoku)
+"
+"2","Warning: package ‘santoku’ was built under R version 4.4.1"
+"2","
+Attaching package: ‘santoku’
+
+"
+"2","The following object is masked from ‘package:tidyr’:
+
+    chop
+
+"

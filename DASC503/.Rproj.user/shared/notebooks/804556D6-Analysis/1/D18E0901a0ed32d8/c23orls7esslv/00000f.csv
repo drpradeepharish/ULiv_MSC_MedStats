@@ -1,0 +1,27 @@
+"0","expand_grid(
+  sex = unique(tblNumerator$sex) %>% as.character(),
+  sha = unique(tblNumerator$sha) %>% as.character(),
+  qimd = unique(tblNumerator$qimd) %>% as.character(),
+  ethnicity = unique(tblNumerator$ethnicity) %>% as.character(),
+  smoking_status = unique(tblNumerator$smoking_status) %>% as.character(),
+  ageband = santoku::chop_width(
+    seq(intAgeMin, intAgeMax, by = 5),
+    start = 25,
+    width = 5,
+    labels = lbl_discrete()
+  )
+) %>%
+  mutate(
+    pid = 0,
+    ever_diagnosed = 0,
+    ever_died = 0,
+    ever_died_cancer = 0,
+    dob = NA,
+    censor_date = NA,
+    age = NA,
+  ) %>%
+  bind_rows(tblNumerator) -> tblGraphNumerator
+"
+"2","Error in expand_grid(sex = unique(tblNumerator$sex) %>% as.character(),  : 
+  could not find function ""%>%""
+"

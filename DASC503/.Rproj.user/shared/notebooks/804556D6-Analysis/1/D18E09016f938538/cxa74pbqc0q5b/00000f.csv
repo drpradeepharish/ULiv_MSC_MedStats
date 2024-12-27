@@ -1,0 +1,4 @@
+"0","#If censor date is before patient's birthday, it will be captured in the previous year..so remove all negatives
+rm(Temp, pllCluster, pllDataSummary, tblData, tblLungCancerCodes)
+"
+"2","Warning: object 'Temp' not found"

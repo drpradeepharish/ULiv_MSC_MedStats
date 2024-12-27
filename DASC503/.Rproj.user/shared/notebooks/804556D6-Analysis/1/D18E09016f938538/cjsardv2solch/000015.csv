@@ -1,0 +1,6 @@
+"0","tblNumerator %>%
+    filter(sex == ""men"") %>% 
+    group_by(sha, ageband) %>% 
+    summarise(diagnosed = sum(ever_diagnosed))
+"
+"2","`summarise()` has grouped output by 'sha'. You can override using the `.groups` argument."
