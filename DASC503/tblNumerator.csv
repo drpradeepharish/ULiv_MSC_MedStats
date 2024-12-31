@@ -398,7 +398,7 @@ pid,sex,qimd,ethnicity,sha,smoking_status,dob,ever_diagnosed,ever_died,ever_died
 744022,women,3,white,Yorkshire and the Humber,smoker,1934-01-06,1,0,0,2019-03-21T00:00:00Z,85,85—90
 749775,women,3,white,East of England,ex_smoker,1931-08-14,1,1,0,2020-05-06T00:00:00Z,88,85—90
 752230,men,5 least deprived,white,South Central,never_smoker,1952-08-16,1,0,0,2020-03-23T00:00:00Z,67,65—69
-759017,men,1 most deprived,white,North East,never_smoker,1929-09-25,1,1,0,2014-12-16T00:00:00Z,85,85—90
+759017,men,1 most deprived,white,North East,ex_smoker,1929-09-25,1,1,0,2014-12-16T00:00:00Z,85,85—90
 760540,men,3,white,East of England,ex_smoker,1947-02-17,1,1,1,2017-04-21T00:00:00Z,70,70—74
 761780,men,2,white,North East,ex_smoker,1939-04-27,1,1,1,2019-05-18T00:00:00Z,80,80—84
 764912,women,4,white,North West,ex_smoker,1947-02-07,1,0,0,2017-05-18T00:00:00Z,70,70—74
@@ -408,7 +408,7 @@ pid,sex,qimd,ethnicity,sha,smoking_status,dob,ever_diagnosed,ever_died,ever_died
 768793,men,5 least deprived,white,South West,ex_smoker,1933-12-17,1,0,0,2018-10-02T00:00:00Z,84,80—84
 771570,men,3,white,London,never_smoker,1931-01-15,1,1,0,2014-01-23T00:00:00Z,83,80—84
 771672,men,2,white,London,smoker,1939-05-04,1,1,1,2019-07-30T00:00:00Z,80,80—84
-772017,women,2,white,London,never_smoker,1938-07-22,1,1,1,2015-07-22T00:00:00Z,77,75—79
+772017,women,2,white,London,ex_smoker,1938-07-22,1,1,1,2015-07-22T00:00:00Z,77,75—79
 772286,men,3,white,North West,ex_smoker,1938-07-21,1,1,0,2020-03-15T00:00:00Z,81,80—84
 778555,men,2,white,East of England,ex_smoker,1961-09-24,1,0,0,2018-12-31T00:00:00Z,57,55—59
 781259,women,3,white,West Midlands,never_smoker,1964-07-25,1,1,1,2015-05-19T00:00:00Z,50,50—54

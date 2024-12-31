@@ -1,9 +1,46 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Risk of lung cancer increases with smoking in an English CPRD cohort"
+output:
+  pdf_document: 
+    toc: no
+    toc_depth: 4
+    fig_width: 12
+    number_sections: yes
+  html_notebook: 
+    toc: no
+    toc_depth: 4
+    fig_width: 12
+    number_sections: yes
+  html_document: 
+    toc: no
+    toc_depth: 4
+    fig_width: 12
+    number_sections: yes
+bibliography: references.bib
+csl: "nature-biotechnology.csl"
 ---
 
-```{r}
+# DASC503: Using Routine Data for Public Health {-}
+
+## Risk of lung cancer increases with smoking in an English CPRD cohort {-}
+
+| Name       | Value      |
+|------------|------------|
+| Date       | 31/12/2024 |
+| Word Count | 1550       |
+| Student ID | 201857199  |
+
+# Generative Artificial Intelligence (GAI) {-}
+
+I **did not** use GAI in the preparation of this work
+
+\newpage
+
+```{=tex}
+\setcounter{tocdepth}{4}
+\tableofcontents
+```
+```{r Libraries, message=FALSE, warning=FALSE}
 library(multidplyr)
 library(tidyverse)
 library(readxl)
@@ -14,16 +51,27 @@ library(ggh4x)
 library(epitools)
 library(santoku)
 library(patchwork)
+library(knitr)
+library(kableExtra)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
+report::report(sessionInfo())
 ```
 
-# Study setup
+# Introduction
 
-## Define study time period
+## Background
 
-For this study, we will consider all events occuring anytime after the 1st of January 2014 till end of 31st of December 2020 as of interest. After examination of the structure of the data, we will also define age cutoffs to ensure we have sufficient data to support our observations.
+Lung cancer is a heterogeneous and common group of bronchogenic carcinomas presenting in the lower respiratory tract[@ferlay; @riaz; @corby; @travis]. Risk factors include sex, smoking, air pollution, exposure to asbestos or other particulate metals, polycyclic hydrocarbons, co-morbidity with diseases such as idiopathic pulmonary fibrosis, genetic predisposition and socioeconomic deprivation/urbanisation[@schabath; @riaz2; @burns; @akhtar; @biesalski]. The national increase in population levels, shift in demographic trends and temporal morphing of rates of exposure/prevalence of risk factors hence present an extant need to understand current and future burdens of lung cancer to optimise methodology, deployment and resource allocation for screening, diagnosis and therapy to promote health equity[@luo].
 
-```{r}
+In this study, we examine age, sex, region, and deprivation specific incidence rates as well as additional risk of lung cancer due to smoking in a synthetic, closed CPRD cohort by integrating patient-level data from 2013-2020 with demographic attributes[@wolf].
 
+## Cohort definition
+
+[Inclusion criteria:]{.smallcaps} A retrospective closed cohort was constructed from routinely collected, anonymised primary care data in England through the auspices of the CPRD's Aurum dataset[@wolf]. Participants were considered for the study if they had atleast one year of prior monitoring available on the CPRD dataset (between 2013-2014); their data met CPRD's research quality standards; and they were aged between 25 and 90 at any point during the study period. Relative risk calculations were conducted based on the patients voluntary (and self-reported) exposure to smoking and incidence of disease.
+
+```{r Vars, message=FALSE, warning=FALSE}
 dateFrom = ymd_hms("2014-1-1 0:0:1")
 dateTo = ymd_hms("2020-12-31 23:59:59")
 
@@ -31,39 +79,73 @@ intervalStudy <- interval(dateFrom,dateTo)
 
 intAgeMin = 25
 intAgeMax = 90
-
 ```
 
-## Read in files
+[Case definition:]{.smallcaps} The event of interest for calculating incidence was defined as a diagnosis of cancer identified through the first assignment of a previously published SNOMED codelist[@head]. For relative risk calculations, patient-reported exposure was defined as the patient voluntarily smoking (SNOMED 77176002), had previously voluntarily smoked (ex-smoker; SNOMED 8517006 or 405746006) or had not smoked at all (non-smoker; SNOMED 266919005 or 8392000)[@reeves]. No data on dose or duration of smoking was available.
 
-Incase of non-unique values for an individual in any variable, we assume the most frequently occuring value as the true value. For instance, if a patient who participated in 5 years of the study was an ex-smoker for all but one year (during which they smoked), the patient will be regarded as an ex-smoker.
-
-```{r}
-
+```{r Readin, message=FALSE, warning=FALSE}
 # Patient population data
 tblData <- read_csv("Source/pop_snomed_assignment.csv")
 # SNOMED codelist
-tblLungCancerCodes <- read_csv("Source/dLungCancerCodes.csv")
+tblLungCancerCodes <- read_csv("Source/dLungCancerCodes.csv", 
+    col_types = cols(medcodeid = col_character(), 
+        snomedctconceptid = col_character(), 
+        snomedctdescriptionid = col_character()))
+tblLungCancerCodes %>% select(descr,snomedctconceptid,snomedctdescriptionid)
   
-#tblLungCancerCodes <- read_csv("https://raw.githubusercontent.com/annalhead    /CPRD_multimorbidity_codelists/9d26739d93744c8444aedbe10de65657c4af6bc0/codelists/Primary%20Malignancy_Lung.csv")
-
+#tblLungCancerCodes <- read_csv("https://raw.githubusercontent.com/annalhead/
+#CPRD_multimorbidity_codelists/9d26739d93744c8444aedbe10de65657c4af6bc0/
+#codelists/Primary%20Malignancy_Lung.csv")
 ```
 
-## Helper functions
+[Exclusion and exit criteria:]{.smallcaps} A patient was excluded from the study if they had a confirmed diagnosis of lung cancer before the 1st of January 2014 or they died from lung cancer without a confirmed diagnosis in the study period. Patients were censored at the earliest date on which they were either diagnosed with lung cancer, died from any cause or reached the end of the study defined as the end of 31st of December 2020.
 
-```{r}
-# Function to get the most frequently occurring value in a vector. 
-fGetMostFrequent <- function(tblInput){
-  tblInput %>% 
-    table() %>% 
-    sort(decreasing = TRUE) %>% 
-    .[1] %>% 
+# Methods
+
+Overall crude incidence rates per 10,000 person-years at risk were calculated, and results were stratified by 5 year age bands, sex, and finally either index of multiple deprivation or region (defined by the strategic health authority responsible for their care) as the case maybe. Age-specific rates were calculated from fractional patient year calculations per age band on a per patient basis. This approach takes into account their date of birth, the study duration, their date of censoring. For example, if a patient participated for more than a year, their patient year contributions per age would be considered (eg. a patient would contribute 0.7 patient years when they were 33 years of age, 1 for 34, and 0.6 patient years for 35 years of age).
+
+## (Assessments 1 & 2) Helper functions
+
+Incase of non-unique values for an individual in any variable, we assume the most frequently occurring value as the true value. For instance, if a patient who participated in 5 years of the study was an ex-smoker for all but one year (during which they smoked), the patient will be regarded as an ex-smoker. However if there is a record of a patient ever having smoked, they will always be regarded as an ex-smoker (eg. patient 661552) unless they are a current smoker. This assumption however incorrectly assumes that even a single incidence of smoking will permanently alter the risk of lung cancer, and future studies must take into account the duration and dose of smoking to calculate specific risks as well as relations between proximity of an exposure to incidence of cancer.
+
+```{r Helpers, message=FALSE, warning=FALSE}
+# Function to get the most frequently occurring value in a vector.
+fGetMostFrequent <- function(tblInput) {
+  tblInput %>%
+    table() %>%
+    sort(decreasing = TRUE) %>%
+    .[1] %>%
     names() -> output
   return(output)
 }
 
+# Function to get the most frequently occurring value in a vector. Specific for 
+# smokers as if a person has ever smoked, they will be an ex-smoker. This 
+# however has limitations in that if a person smokes for only 1 months they will
+# be considered equally at risk as someone who has previously smoked for 4 years. 
+
+fGetMostFrequentSmoker <- function(tblInput) {
+  # Determine the most frequent classification
+  tblInput %>%
+    table() %>%
+    sort(decreasing = TRUE) -> Temp
+  
+  Temp[1] %>%
+    names() -> output
+  
+  # Check if there's any "smoker" or "ex-smoker" in the input 
+  # which is not the most frequent
+  if (any(c("smoker", "ex_smoker") %in% names(Temp)) &&
+      !(output %in% c("smoker", "ex-smoker"))) {
+    return("ex_smoker")
+  }
+  else
+    return(output) # Otherwise, return the most frequent classification
+  
+}
+
 # Function to calculate the time difference in years between two dates
-fCalcYear <- function(dateFrom,dateTo){
+fCalcYear <- function(dateFrom, dateTo) {
   return(interval(dateFrom, dateTo) / years(1))
 }
 
@@ -90,70 +172,97 @@ fSavePlot <-
   }
 
 # Function to calculate incidence and poission CI
-fCalculateIncidence <- function(tblNumerator, tblDenominator, strGroupVars) 
+fCalculateIncidence <-
+  function(tblNumerator,
+           tblDenominator,
+           strGroupVars)
   {
-  tblNumerator %>%
-    group_by(across(all_of(strGroupVars))) %>%
-    summarise(diagnosed = sum(ever_diagnosed)) %>%
-    left_join(
-      tblDenominator %>%
-        group_by(across(all_of(strGroupVars))) %>%
-        summarise(patient_years = sum(total_patient_years))
-    ) %>%
-    mutate(
-      Incidence = diagnosed / patient_years * 10000,
-      CI = pois.approx(diagnosed, pt = patient_years) * 10000
-    )
-}
+    tblNumerator %>%
+      group_by(across(all_of(strGroupVars))) %>%
+      summarise(diagnosed = sum(ever_diagnosed)) %>%
+      left_join(tblDenominator %>%
+                  group_by(across(all_of(strGroupVars))) %>%
+                  summarise(patient_years = sum(total_patient_years))) %>%
+      mutate(
+        Incidence = diagnosed / patient_years * 10000,
+        CI = pois.approx(diagnosed, pt = patient_years) * 10000
+      )
+  }
 
 # Function to plot incidence and poission CI
-fPlotIncidence <- function(tblData, strTitle, strGroupBy, strNameGroupBy, numCrudeGlobalIncidence, strSmooth, lstYLim = c(0,100)) {
-  tblData %>% 
-  ggplot(aes(
-    x = ageband,
-    y = Incidence,
-    group = !!sym(strGroupBy),
-    colour = !!sym(strGroupBy)
-  )) +
-    scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
-    geom_hline(aes(yintercept = numCrudeGlobalIncidence)) +
-    geom_errorbar(aes(ymin = CI$lower, ymax = CI$upper), width = 0.05, alpha = 0.2) +
-    geom_point() +
-    geom_smooth(method = strSmooth, se = FALSE) +
-    ggsci::scale_color_aaas() +
-    theme_cowplot(12) +
-    ylab("Incidence rate per 10k person years") +
-    xlab("Age") +
-    coord_cartesian(ylim = lstYLim) +
-    labs(colour = strNameGroupBy, title = strTitle)
-}
+fPlotIncidence <-
+  function(tblData,
+           strTitle,
+           strGroupBy,
+           strNameGroupBy,
+           numCrudeGlobalIncidence,
+           strSmooth,
+           lstYLim = c(0, 100)) {
+    tblData %>%
+      ggplot(aes(
+        x = ageband,
+        y = Incidence,
+        group = !!sym(strGroupBy),
+        colour = !!sym(strGroupBy)
+      )) +
+      scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+      geom_hline(aes(yintercept = numCrudeGlobalIncidence)) +
+      geom_errorbar(aes(ymin = CI$lower, ymax = CI$upper),
+                    width = 0.05,
+                    alpha = 0.2) +
+      geom_point() +
+      geom_smooth(method = strSmooth, se = FALSE) +
+      ggsci::scale_color_aaas() +
+      theme_cowplot(12) +
+      ylab("Incidence rate per 10k person years") +
+      xlab("Age") +
+      coord_cartesian(ylim = lstYLim) +
+      labs(colour = strNameGroupBy, title = strTitle)
+  }
 
-fPlotBoxIncidence <- function(tblData, strX, strY, strTitle, strGroupBy, boolStaggerXLbl = TRUE, strSmooth, numCrudeGlobalIncidence, lstYLim = c(0,100)) {
-  tblData %>% 
-  ggplot(aes(
-    x = !!sym(strX),
-    y = !!sym(strY),
-    group = !!sym(strGroupBy),
-    colour = !!sym(strGroupBy)
-  )) +
-    {if(boolStaggerXLbl) scale_x_discrete(guide = guide_axis(n.dodge = 3))} +
-    geom_hline(aes(yintercept = numCrudeGlobalIncidence)) +
-    geom_errorbar(aes(ymin = CI$lower, ymax = CI$upper), width = 0.05, alpha = 0.2, show.legend = FALSE) +
-    geom_boxplot(show.legend = FALSE) +
-    ggsci::scale_color_aaas() +
-    theme_cowplot(12) +
-    ylab("Incidence rate per 10k person years") +
-    xlab("") +
-    coord_cartesian(ylim = lstYLim) +
-    labs(title = strTitle)
-}
+fPlotBoxIncidence <-
+  function(tblData,
+           strX,
+           strY,
+           strTitle,
+           strGroupBy,
+           boolStaggerXLbl = TRUE,
+           strSmooth,
+           numCrudeGlobalIncidence,
+           lstYLim = c(0, 100)) {
+    tblData %>%
+      ggplot(aes(
+        x = !!sym(strX),
+        y = !!sym(strY),
+        group = !!sym(strGroupBy),
+        colour = !!sym(strGroupBy)
+      )) +
+      {
+        if (boolStaggerXLbl)
+          scale_x_discrete(guide = guide_axis(n.dodge = 3))
+      } +
+      geom_hline(aes(yintercept = numCrudeGlobalIncidence)) +
+      geom_errorbar(
+        aes(ymin = CI$lower, ymax = CI$upper),
+        width = 0.05,
+        alpha = 0.2,
+        show.legend = FALSE
+      ) +
+      geom_boxplot(show.legend = FALSE) +
+      ggsci::scale_color_aaas() +
+      theme_cowplot(12) +
+      ylab("Incidence rate per 10k person years") +
+      xlab("") +
+      coord_cartesian(ylim = lstYLim) +
+      labs(title = strTitle)
+  }
 ```
 
-# Data cleaning and transformation
+## (Assessments 1 & 2) Data cleaning and transformation
 
-## Data restructure
+### Data restructure
 
-```{r}
+```{r Clean1, message=FALSE, warning=FALSE}
 tblData %<>%
   # Remove rows with missing SNOMED description IDs
   filter(!is.na(snomedctdescriptionid)) %>%
@@ -181,13 +290,11 @@ tblData %<>%
       .default = dateTo # Default censor date if no event = end of study
     )
   ) 
-
-
 ```
 
-## Parallel aggregation with `multidplyr`
+### Parallel aggregation with `multidplyr`
 
-```{r}
+```{r Clean2, message=FALSE, warning=FALSE}
 # Create a parallel processing cluster using available CPU cores
 pllCluster <- new_cluster(parallel::detectCores() - 4)
 
@@ -198,7 +305,10 @@ tblData %>%
 
 # Load required libraries and functions on all cluster nodes
 cluster_library(pllCluster, "tidyverse")
-cluster_copy(pllCluster, c("fCalcYear", "fGetMostFrequent", "dateFrom"))
+cluster_copy(pllCluster, c("fCalcYear", 
+                           "fGetMostFrequent", 
+                           "fGetMostFrequentSmoker",
+                           "dateFrom"))
 
 # Summarise data per patient across cluster nodes
 pllDataSummary %>%
@@ -208,7 +318,7 @@ pllDataSummary %>%
     qimd = fGetMostFrequent(qimd),
     ethnicity = fGetMostFrequent(ethnicity),
     sha = fGetMostFrequent(sha),
-    smoking_status = fGetMostFrequent(smoking_status),
+    smoking_status = fGetMostFrequentSmoker(smoking_status),
     dob = fGetMostFrequent(dob),
     
     # Check if ever diagnosed with cancer
@@ -224,25 +334,32 @@ pllDataSummary %>%
     censor_date = min(censor_date)
   ) %>%
   
-  # Calculate patient age at event date, rounded down. We need this for age-specific incidence calculations
+  # Calculate patient age at event date, rounded down. 
+  # We need this for age-specific incidence calculations
   mutate(age = fCalcYear(dob, censor_date) %>% floor()) %>%
   
   # Bring results back to the main R session
   collect() %>%
   
-  # Remove patients who die of cancer, but are not diagnosed with cancer within available data. These patients would have likely contracted the disease earlier on, and as they already have the disease, they are not at risk. Also only keep events within study interval.
+  # Remove patients who die of cancer, but are not diagnosed with cancer within 
+  # available data. These patients would have likely contracted the disease 
+  # earlier on, and as they already have the disease, they are not at risk. 
+  # Also only keep events within study interval.
   filter(!(ever_diagnosed == 0 & ever_died_cancer == 1),
          censor_date %within% intervalStudy) %>% 
   
-  # For some reason, lubridate breaks down when adding years to a leap year...possible bug? Anyway, this should round down the leap day to the previous day. Not an ideal solution, but given the average person-year length of the study, the contribution of a day shouldn't add up that much.. Christ this took ages to figure out whats happening.
+  # For some reason, lubridate breaks down when adding years to a leap year..
+  # possible bug? Anyway, this should round down the leap day to the previous
+  # day. Not an ideal solution, but given the average person-year length of the 
+  # study, the contribution of a day shouldn't add up that much.
   mutate(dob = gsub("02-29","02-28", dob)) -> tblDataSummary
-
 ```
 
-# Numerator calculations
+## (Assessment 1) Numerator calculations
 
-```{r}
-# Filter patients diagnosed with cancer based on predefined cutoffs and discretise ages
+```{r Num, message=FALSE, warning=FALSE}
+# Filter patients diagnosed with cancer based on predefined
+# cutoffs and discretise ages
 tblDataSummary %>%
   filter(ever_diagnosed == 1,
          (age >= intAgeMin &
@@ -257,7 +374,11 @@ tblDataSummary %>%
 # Save the filtered dataset as a CSV file
 tblNumerator %>% write_csv("tblNumerator.csv")
 
-# Creating an empty tibble with no unique diagnoses of cancer to capture those years, sex, qimd, etc in which there are no diagnoses of cancer (incidence has been 0). As such, these data are filtered out in our numerator calculations. This will introduce it back in. This is so that we can plot those years with no incidences easily 
+# Creating an empty tibble with no unique diagnoses of cancer to capture those
+# years, sex, qimd, etc in which there are no diagnoses of cancer (incidence
+# has been 0). As such, these data are filtered out in our numerator
+# calculations. This will introduce it back in.
+# This is so that we can plot those years with no incidences easily
 expand_grid(
   sex = unique(tblNumerator$sex) %>% as.character(),
   sha = unique(tblNumerator$sha) %>% as.character(),
@@ -281,73 +402,93 @@ expand_grid(
     age = NA,
   ) %>%
   bind_rows(tblNumerator) -> tblGraphNumerator
-
 ```
 
-# Denominator calculations
+## (Assessment 1) Denominator calculations
 
-```{r}
+```{r Denom, eval = FALSE, message = FALSE, warning = FALSE}
 
-#WARNING: This is ridiculously computationally expensive. The need to figure out each person's person-year calculation, per age creates a tibble with something like 3m rows. This can be done more efficiently, for instance by not calculating the py for every year, but merely the first year in the study and the year of censoring. 
+# WARNING: This is computationally expensive. The need to calculate
+# each person's person-year calculation, per age creates a tibble with 3m rows.
+# This can be done more efficiently, for instance by not
+# calculating the py for every year, but merely the first year in the study and
+# the year of censoring. I have run this analysis and saved the results as a csv
+# file, which will be used further on, but have included the code for clarity.
 
 # Create a parallel processing cluster using available CPU cores
 pllCluster <- new_cluster(parallel::detectCores() - 4)
 
 # Distribute data across the cluster by patient ID
 tblDataSummary %>%
-  group_by(pid) %>%
-  partition(pllCluster) -> pllDataSummary
+group_by(pid) %>%
+partition(pllCluster) -> pllDataSummary
 
 # Load required libraries and functions on all cluster nodes
 cluster_library(pllCluster, "tidyverse")
 cluster_copy(pllCluster, c("fCalcYear", "dateFrom"))
 
-# We are now going to achieve two objectives with the next section. We are going to calculate all ages a person experienced in the study, and the total person- year they contributed to the study after taking into account their dob
+# We are now going to achieve two objectives with the next section. We are going
+# to calculate all ages a person experienced in the study, and the total
+# person- year they contributed to the study after taking into account their dob
 
-# We initially calculate age at study start and censor date. Then we will create a new row for each age the patient experienced in the study. Eg. if a patient born on 2000 participates in the study from 2014 till 2018 then the patient will have been 14,15,16,17, and 18. This is important for age specific person year calculations as they will have contributed person years over a range of ages.
-
-
+# We initially calculate age at study start and censor date. Then we will create
+# a new row for each age the patient experienced in the study. Eg. if a patient
+# born on 2000 participates in the study from 2014 till 2018 then the patient
+# will have been 14,15,16,17, and 18. This is important for age specific person
+# year calculations as they will have contributed person years over many ageband.
 
 pllDataSummary %>%
-  mutate(
-    age_at_start = fCalcYear(dob, dateFrom) %>% floor(),
-    age_at_censor = fCalcYear(dob, censor_date) %>% floor(),
-    age_seq = map2(age_at_start, age_at_censor, seq)
-  ) %>%
-  collect() -> Temp
+mutate(
+age_at_start = fCalcYear(dob, dateFrom) %>% floor(),
+age_at_censor = fCalcYear(dob, censor_date) %>% floor(),
+age_seq = map2(age_at_start, age_at_censor, seq)
+) %>%
+collect() -> Temp
 
+# unnesting not implemented in multidplyr. So we have to exit out of multidplyr
+# and reparallelise.
 Temp %<>%
-  unnest_longer(age_seq) #unnesting not implemented in multidplyr. So we have to exit out of multidplyr and reparallelise.
+unnest_longer(age_seq)
 
-# While we have calculated the ages the patient contributed, we have to calculate the fractional person-years per age they took part in the study. Eg. a patient born on 2000-01-01 vs 2000-06-01 will have contributed different person years (by 6 months) at any point in the study. This approach takes their dob into account and calculates the correct factional person-years contributed.
+# While we have calculated the ages the patient contributed, we have to
+# calculate the fractional person-years per age they took part in the study.
+# Eg. a patient born on 2000-01-01 vs 2000-06-01 will have contributed different
+# person years (by 6 months) at any point in the study. This approach takes
+# their dob into account and calculates the correct factional person-years.
 Temp %<>%
-  group_by(pid) %>%
-  partition(pllCluster) %>%
-  mutate(
-    year_start = pmax(dateFrom, ymd(dob) + years(age_seq)),
-    year_end = pmin(censor_date, ymd(dob) + years(age_seq + 1)),
-    patient_years = fCalcYear(year_start, year_end)
-  ) %>%
-  collect() 
+group_by(pid) %>%
+partition(pllCluster) %>%
+mutate(
+year_start = pmax(dateFrom, ymd(dob) + years(age_seq)),
+year_end = pmin(censor_date, ymd(dob) + years(age_seq + 1)),
+patient_years = fCalcYear(year_start, year_end)
+) %>%
+collect()
 
-  # For the edge cases where the patient's birthday is after the censor date. The fraction of the year up to the censor date is correctly calculated in the previous row. However, the loop may generate an additional row for the next birthday, resulting in a negative 'patient_years' value because the interval extends past the censor date. This filter ensures only valid rows are kept by removing any where the calculated interval is invalid.
+# For the cases where the patient's birthday is after the censor date.
+# The fraction of the year up to the censor date is correctly calculated in
+# the previous row. However, the loop may generate an additional row for the
+# next birthday, resulting in a negative 'patient_years' value because the
+# interval extends past the censor date. This filter ensures only valid rows
+# are kept by removing any where the calculated interval is invalid.
 
-# Group by demographic and age attributes, then calculate total patient-years per group
+# Group by demographic and age attributes, then calculate total py per group
 Temp %>%
-  filter(patient_years >= 0) %>% 
-  group_by(sex, qimd, ethnicity, sha, smoking_status, age = age_seq) %>%
-  summarise(total_patient_years = sum(patient_years, na.rm = TRUE)) %>% 
-  arrange(age) %>%
-  
-  # Filtering here as we do not want to include at-risk times of people who are outside of the age cut-offs
-  filter(age >= intAgeMin &
-           age <= intAgeMax) %>%
-  mutate(ageband = chop_width(
-    age,
-    start = 25,
-    width = 5,
-    labels = lbl_discrete()
-  ))  -> tblDenominator
+filter(patient_years >= 0) %>%
+group_by(sex, qimd, ethnicity, sha, smoking_status, age = age_seq) %>%
+summarise(total_patient_years = sum(patient_years, na.rm = TRUE)) %>%
+arrange(age) %>%
+
+# Filtering here as we do not want to include at-risk times of people who 
+# are outside of the age cut-offs
+filter(age >= intAgeMin &
+age <= intAgeMax) %>%
+mutate(ageband = chop_width(
+age,
+start = 25,
+width = 5,
+labels = lbl_discrete()
+))  -> tblDenominator
 
 # Save the final aggregated denominator table to a CSV file
 tblDenominator %>% write_csv("tblDenominator.csv")
@@ -355,15 +496,24 @@ tblDenominator %>% write_csv("tblDenominator.csv")
 # Clean variables
 rm(Temp, pllCluster, pllDataSummary, tblData, tblLungCancerCodes)
 
-numCrudeGlobalIncidence = sum(tblNumerator$ever_diagnosed)/sum(tblDenominator$total_patient_years) * 10000
 ```
 
-# Assessment 1:
+```{r Denom2, message=FALSE, warning=FALSE}
+#To save myself recalculating the denominator table everytime I modify the Rmd, 
+# I save the output to a csv and read it in.
 
-## Age and sex specific incidence rate ratios for lung cancer are higher men than women
+tblDenominator <- read_csv("tblDenominator.csv")
 
-```{r}
+# Calculate unstratified national incidence for comparison
+numCrudeGlobalIncidence = sum(tblNumerator$ever_diagnosed)/
+  sum(tblDenominator$total_patient_years) * 10000
+```
 
+# Results
+
+## (Assessment 1) Age and sex specific incidence rate ratios for lung cancer are higher for men than women
+
+```{r A1F1, message=FALSE, warning=FALSE}
 lstGroupVar = c("sex", "ageband")
 ggVarGroupBy = "sex"
 ggNameGroupBy = "Sex"
@@ -389,11 +539,26 @@ tblTemp %>% fPlotIncidence(
 
 ggTempAll %>% fSavePlot(strGraphTitle,strSmoother, w = 6, h = 6)
 
+ggTempAll
+
+fCalculateIncidence(tblGraphNumerator,
+                    tblDenominator,
+                    ggVarGroupBy) %>%
+  mutate(sex = gsub("^men", "Male", sex),
+         sex = gsub("^women", "Female", sex)) %>%
+  mutate(order = ifelse(sex == "Female", 1,2)) %>% 
+  arrange(order) %>% 
+  column_to_rownames(ggVarGroupBy) %>%
+  select(diagnosed, patient_years) %>%
+  as.matrix() %>%
+  rateratio() %>%  
+  kable()
 ```
 
-## Age, sex and deprivation specific incidence rates for lung cancer are directly proportional to quintiled index of multiple deprivation
+\pagebreak
+## (Assessment 1) Age, sex and deprivation specific incidence rates for lung cancer are directly proportional to quintiled index of multiple deprivation
 
-```{r}
+```{r A1F2, message=FALSE, warning=FALSE}
 lstGroupVar = c("qimd", "ageband")
 ggVarGroupBy = "qimd"
 ggNameGroupBy = "Qunitiled index of \nmultiple deprivation"
@@ -435,18 +600,36 @@ fCalculateIncidence(tblNumerator, tblDenominator, c("qimd")) %>%
                     strTitle = "Deprivation",
                     strGroupBy = "qimd",
                     boolStaggerXLbl = FALSE, 
-                    numCrudeGlobalIncidence =  numCrudeGlobalIncidence , 
+                    numCrudeGlobalIncidence =  numCrudeGlobalIncidence, 
                     lstYLim =  c(0,15)) -> ggTemp
 
-ggFig <- ggTemp + ggTempMale + ggTempFemale + plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & theme(legend.position = 'bottom')
+ggFig <- ggTemp + 
+  ggTempMale + 
+  ggTempFemale + 
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+  theme(legend.position = 'bottom')
 
 ggFig %>% fSavePlot(strGraphTitle,strSmoother, w = 14, h = 6)
+ggFig
+
+
+fCalculateIncidence(tblGraphNumerator,
+                    tblDenominator,
+                    ggVarGroupBy) %>%
+  mutate(order = ifelse(qimd == "5 least deprived", 1,2)) %>% 
+  arrange(order) %>% 
+  column_to_rownames(ggVarGroupBy) %>%
+  select(diagnosed, patient_years) %>%
+  as.matrix() %>%
+  round(2) %>% 
+  rateratio() %>%  
+  kable()
 ```
 
-## Age, sex and region specific incidence rates are higher in the north of England
+\pagebreak
+## (Assessment 1) Age, sex and region specific incidence rates are higher in the north of England
 
-```{r}
-
+```{r A1F3, message=FALSE, warning=FALSE}
 lstGroupVar = c("sha", "ageband")
 ggVarGroupBy = "sha"
 ggNameGroupBy = "Regions"
@@ -488,7 +671,8 @@ tblTempFemale %>% fPlotIncidence(
 ) -> ggTempFemale
 
 fCalculateIncidence(tblNumerator, tblDenominator, c("sha")) %>% 
-   mutate(sha = gsub("Yorkshire and the Humber", "Yorkshire \\& Humber", sha)) %>% 
+   mutate(sha = 
+            gsub("Yorkshire and the Humber", "Yorkshire \\& Humber", sha)) %>% 
   fPlotBoxIncidence(strX = "sha",
                     strY = "Incidence",
                     strTitle = "Regions",
@@ -497,21 +681,39 @@ fCalculateIncidence(tblNumerator, tblDenominator, c("sha")) %>%
                     numCrudeGlobalIncidence =  numCrudeGlobalIncidence , 
                     lstYLim =  c(0,15)) -> ggTemp
 
-ggFig <- ggTemp + ggTempMale + ggTempFemale + plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & theme(legend.position = 'bottom')
+ggFig <- ggTemp + 
+  ggTempMale + 
+  ggTempFemale + 
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+  theme(legend.position = 'bottom')
 
 ggFig %>% fSavePlot(strGraphTitle,strSmoother, w = 14, h = 6)
+ggFig
+
+fCalculateIncidence(tblGraphNumerator,
+                    tblDenominator,
+                    ggVarGroupBy) %>%
+  mutate(order = ifelse(sha == "London", 1,2)) %>% 
+  arrange(order) %>% 
+  column_to_rownames(ggVarGroupBy) %>%
+  select(diagnosed, patient_years) %>%
+  as.matrix() %>%
+  rateratio() %>% 
+  kable()
 ```
 
-## Relation between deprivation and region
+\pagebreak
+## (Assessment 1) Relation between deprivation and region show more deprived regions are in the North of England
 
-```{r}
+```{r A1F4, message=FALSE, warning=FALSE}
 tblDataSummary %>% 
   select(qimd, sha) %>% 
   table() %>% 
   as_tibble(rownames = "Region") %>% 
   group_by(sha) %>% 
   mutate(Percent = n/sum(n)*100,
-         sha = gsub("Yorkshire and the Humber", "Yorkshire \\& Humber", sha)) -> ggTemp
+         sha = gsub("Yorkshire and the Humber", 
+                    "Yorkshire \\& Humber", sha)) -> ggTemp
 
 ggTemp %>% 
   ggplot(aes(sha, qimd, fill = Percent)) +
@@ -525,59 +727,52 @@ ggTemp %>%
   labs(fill = "Percent of \nparticipants \nper region")-> ggFig
 
 ggFig %>% fSavePlot("RegionDeprivation","Htmp", w = 8, h = 6)
-
+ggFig
 ```
 
-**Obtaining data from the ONS:**
+\pagebreak
+## (Assessment 2) Relative risks of lung cancer significantly increases with smoking
 
-Population estimates: <https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/estimatesofthepopulationforenglandandwales/mid2011tomid2022detailedtimeseries/myebtablesenglandwales20112022v3.xlsx>
-
-Postcode directory: <https://www.arcgis.com/sharing/rest/content/items/6092bd9ef7b04f94982053610e6c0acc/data>
-
-SHA names: <https://www.arcgis.com/sharing/rest/content/items/819941b6e37c4e07ab6fda56425bf9b1/data>
-
-```{r}
-
-lstCSV <- list.files(path = "Source/", pattern = "\\.csv$")
-
-for (i in 1:length(lstCSV))
-{
-  assign(substr(lstCSV[i], 1, nchar(lstCSV[i]) - 4), read_csv(file = paste0("Source/",lstCSV[i])))
-}
-
-dLungCancerCodes <- read_csv("https://raw.githubusercontent.com/annalhead/CPRD_multimorbidity_codelists/9d26739d93744c8444aedbe10de65657c4af6bc0/codelists/Primary%20Malignancy_Lung.csv")
-
-dPopEstimates20112022 <- read_excel("Source/myebtablesenglandwales20112022v3.xlsx", sheet = "MYEB1 (2023 Geography)", skip = 1)
-
-ONSPD_NOV_2020_UK %>% 
-  select(oslaua,oshlthau) %>% 
-  unique() %>% 
-  filter(oshlthau %in% SHA_names_and_codes_EN_as_at_12_10$SHA10CD) %>% 
-  left_join(SHA_names_and_codes_EN_as_at_12_10, by = (c("oshlthau" = "SHA10CD"))) -> dONSPostcodes 
-
-dPopEstimates20112022 %>% left_join(dONSPostcodes, by = c("ladcode23" = "oslaua")) %>%
-  select(-c(ladcode23, laname23, oshlthau, country)) %>%
-  filter(!is.na(SHA10NM)) %>% 
-  group_by(SHA10NM, age, sex) %>% 
-  summarise(across(starts_with("population"),sum)) -> dSumPopEstimates
-
-rm(ONSPD_NOV_2020_UK, dPopEstimates20112022, dONSPostcodes, SHA_names_and_codes_EN_as_at_12_10)
-
-pop_snomed_assignment %>% 
-    filter(.$snomedctdescriptionid %in% dLungCancerCodes$snomedctdescriptionid | .$medcodeid %in% dLungCancerCodes$medcodeid) %>%
-    group_by(pid) %>% 
-    summarise(first_diagnosis = min(event_date)) %>% 
-    filter(first_diagnosis %within% intervalStudy) %>% 
-    .$pid %>% 
-    unique() -> lstDiagnosedPatients 
-
-pop_snomed_assignment %>% 
-  filter(pid %in% lstDiagnosedPatients) %>% 
-  mutate(age = interval(ymd(dob),ymd(event_date)) %/% years(1)) %>% 
-  mutate(is_cancer_relevant = ifelse(snomedctdescriptionid %in% dLungCancerCodes$snomedctdescriptionid | medcodeid %in% dLungCancerCodes$medcodeid, "Y","N"),
-         is_death = ifelse(snomedctdescriptionid <0,ifelse(snomedctdescriptionid == -5,"C","Y"),NA)) %>% 
-  filter(event_date %within% intervalStudy) %>% 
-  select(-c(snomedctdescriptionid, medcodeid))-> dDiagnosedPatients
-  
-
+```{r A2F1,message=FALSE, warning=FALSE}
+tblDataSummary %>% 
+  group_by(smoking_status, ever_diagnosed) %>% 
+  summarise(n = length(ever_diagnosed)) %>% 
+    mutate(smoking_status = gsub("^never_smoker","Non-smoker", smoking_status),
+         smoking_status = gsub("^ex_smoker","Ex-smoker", smoking_status),
+         smoking_status = gsub("^smoker","Current smoker", smoking_status),
+         ever_diagnosed = gsub("^0","No lung cancer", ever_diagnosed),
+         ever_diagnosed = gsub("^1","Has lung cancer", ever_diagnosed)) %>% 
+  pivot_wider(names_from = ever_diagnosed, values_from = n) %>% 
+  mutate(smoking_status = factor(smoking_status, 
+                                 levels = c("Non-smoker", 
+                                            "Ex-smoker",
+                                            "Current smoker"))) %>% 
+  arrange(smoking_status) %>%
+  column_to_rownames("smoking_status") %>% 
+  as.matrix() %>% 
+  epitab(method = "riskratio") %>%
+  .$tab %>% 
+  kable() 
 ```
+
+Our analyses show that smoking significantly increases the risk of lung cancer, and quitting smoking does not immediately attenuate the risk. Indeed, with non-smokers as a reference, current smokers have a 550% (RR: 6.50 [95% CI: 4.93-8.57]; p \<0.001) higher risk of contracting lung cancer whereas ex-smokers counterintutively display a 660% (RR: 7.60 [5.88-9.83]; p \< 0.001) increased risk of lung cancer compared to non-smokers. The observed higher risk of lung cancer among ex-smokers compared to current smokers is often driven by survival biases, high latency periods (with cancers potentially requiring sustained exposure to smoking before development and once having been exposed, requiring a long time for the risk to reduce)[@fry], or reverse causation (with patients potentially quitting smoking upon development of symptoms)[@samet], rather than a genuine protective effect of continued smoking. Hence stratification by dose of exposure, age at smoking cessation, and time since cessation along with sensitivity analyses are essential for accurately assessing risks[@lubin; @reitsma].
+
+# Critical appraisal
+
+By using a relatively modest primary care dataset of 110,122 patients from CPRD Aurum, our study has been able to capture lung cancer incidence among a diverse sub-population in the UK. In line with other studies, we report that there is a region specific difference in incidence of lung cancer, with the North of England having higher disease burden[@riaz2; @navani]. We also report that smoking significantly increases the risk of lung cancer by a factor of 6-8[@okeefe; @jacob]. While our study further supports such lung cancer trends, it remains limited by biases inherent in retrospective observational data and assumptions of static risk exposure.
+
+While the CPRD datasets have been broadly suggested to be representative of the UK population[@booth; @shiekh], certain groups of people such as those who subscribe to private healthcare, those in prisons[@spaulding; @richmond], are homeless[@dawkins; @garner], or in the armed forces[@fear] are underrepresented; all of whom have significantly different exposures to smoking potentially introducing participation biases.
+
+A second significant limitation in the study is that every eligible patient was considered to be equally at risk for lung cancer (which is improbable[@alberg]). Hence on a granular examination, there is a chance we may underestimate the true risk in an appropriatly risk-stratified sub-group.
+
+As only participants from 25 years of age onwards were considered for the study due to constraints in data availability, they may however exclude rarer cancer events among younger adults[@liu], potentially decreasing the number of cancer diagnoses in the unexposed group and biasing risk calculations. Furthermore, these young adults may have non-monitored risk factors and differential survival trajectories than older patients with lung cancer, with important implications for health policy[@rich].
+
+While the determination of smoking was implemented from a previously published code-list[@reeves], there was no availability of dosage (eg. no of packs a day) or duration of previous exposure, both of which have a relevant impact on the risk profile. No data was also recorded on the effect of passive smoking by participants. Furthermore, it is also possible that such information may not be frequently updated within health records unless a diagnostic indication warrants recording such information[@marston; @polu]. This therefore may artificially enrich the proportion of exposed individuals incident with the disease in our risk calculations.
+
+Further studies can be performed utilising mortality/survival analysis within a competing risk framework to link age based incidence and survival. This will give us insights into if older patients have worse survival outcomes, if regional or socioeconomic disparities affect survival (and if regional health policies align with these dispatities), how these findings align with incidence patterns, if transitioning from a smoker to an ex-smoker impacts disease incidence/survival.
+
+# Reflective summary
+
+Through these assignments, I gained valuable skills in epidemiological data analysis, advanced R programming, and critical thinking. Perhaps the most important lesson learnt was that there is no one good answer/no one good method to anything, and every choice will introduce one or the other bias which we must work around. These skills were mostly learnt through hands on time with the assessments, and guided by discussions in lectures and practical classes. This learning matters because it strengthens my ability to conduct robust, reproducible analyses (and interpret such analyses performed by others) that can inform public health policies and interventions. Moving forward, I will apply these skills to future research projects, improving data handling, analysis efficiency, and communication of findings while maintaining a critical eye on potential biases and limitations.
+
+# References
